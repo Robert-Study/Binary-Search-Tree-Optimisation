@@ -1,8 +1,6 @@
 # Forest Fire Model — Work in Progress
 
-This repository contains a **personal research and passion project** exploring reward distribution and float within depth based reward binary search trees
-
-The codebase is **under active development**. Structure, APIs, and implementations may change as the project evolves.
+This repository contains a **personal research and passion project** exploring reward distribution and float within depth-based reward binary search trees, where the current goal is to create an optimisation module to increase all node outputs above a threshold of 0.
 
 ## Status
 - Binary Search tree implemented with depth-based rewards (27/100 nodes below threshold)
