@@ -42,6 +42,16 @@ The next objective is to determine whether the improvements can be expressed as 
 
 **Methods:** binary search trees · numerical optimisation · parameter exploration · reward weighting · rounding analysis · interactive visualisation
 
+### Setup
+
+Install the notebook dependencies with:
+
+```bash
+pip install -r requirements.txt
+```
+
+Then open `Binary Search Trees.ipynb` in a Jupyter environment. The interactive seed controls require `ipywidgets`.
+
 ---
 
 ## Repository
@@ -49,6 +59,7 @@ The next objective is to determine whether the improvements can be expressed as 
 ```text
 Binary-Search-Tree-Optimisation/
 ├── Binary Search Trees.ipynb
+├── requirements.txt
 └── README.md
 ```
 
