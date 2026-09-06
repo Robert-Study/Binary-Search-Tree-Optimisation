@@ -1,0 +1,30 @@
+{
+  "nodes": 100,
+  "roots": [
+    38,
+    62
+  ],
+  "threshold": 0,
+  "negative_tolerance": 1e-09,
+  "uniform": {
+    "minimum_reward": -0.56,
+    "mean_reward": 0.2,
+    "keys_below_zero": 13
+  },
+  "maximin": {
+    "minimum_reward": -0.19823612806738675,
+    "mean_reward": 0.2,
+    "keys_below_zero": 38
+  },
+  "expanded_maximin": {
+    "roots": [
+      1,
+      100
+    ],
+    "minimum_reward": 0.028524391053820337,
+    "mean_reward": 0.10567932748172437,
+    "keys_below_zero": 0,
+    "all_keys_strictly_positive": true
+  },
+  "scope": "Numerical optimum over the fixed candidate trees, not all possible BST structures."
+}

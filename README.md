@@ -1,66 +1,65 @@
 # Binary Search Tree Optimisation
 
-An exploratory numerical project investigating how **depth-based reward distributions** behave across binary search trees and how weighting or rounding strategies can improve outcomes across different tree configurations.
+How should a root be chosen if each key's reward depends on its depth in the resulting tree?
 
-The notebook combines simulation, optimisation and interactive visualisation to examine how node position and tree depth affect rewards across a range of seeds.
+This began as an exploratory notebook about weighting root choices and rounding decisions. The current version defines the problem explicitly and uses linear programming to maximise the **lowest expected reward** across keys.
 
-> **Status:** exploratory / work in progress
+## The model
 
----
+The keys are 1–100. After choosing the root, each subtree is split at its middle key; where there are two middle keys, the one further from the parent is chosen. Ties go to the upper middle key. A key at depth d receives reward **6 − d**, with the root at depth one.
 
-## Current Results
-
-- Baseline configuration: **27 of 100 nodes** fall below the target threshold
-- Weighting optimisation reduces this to **16 of 100 nodes**
-- Targeted rounding rules can move individual configurations entirely above threshold
-- Seeds **38–62** are explored as a candidate region for improved average reward behaviour in the default setup
-- The analysis examines relationships between tree depth, node position, weighting and rounding behaviour
-
----
-
-## What the Notebook Does
-
-- Generates reward distributions for binary search trees across multiple seeds
-- Builds and visualises trees using **NetworkX**
-- Compares rewards for individual seeds and weighted averages
-- Produces tabular comparisons across nodes and configurations
-- Provides an interactive seed selector using **ipywidgets**
-- Tests weighting and rounding adjustments
-- Uses numerical optimisation tools from **SciPy** to explore improved configurations
-
----
-
-## Current Focus
-
-The next objective is to determine whether the improvements can be expressed as a **general optimisation rule** that performs consistently across different seeds and tree structures, rather than relying on configuration-specific adjustments.
-
----
-
-## Technical Stack
-
-`Python` · `NumPy` · `Pandas` · `SciPy` · `Matplotlib` · `NetworkX` · `Jupyter` · `ipywidgets`
-
-**Methods:** binary search trees · numerical optimisation · parameter exploration · reward weighting · rounding analysis · interactive visualisation
-
-### Setup
-
-Install the notebook dependencies with:
-
-```bash
-pip install -r requirements.txt
-```
-
-Then open `Binary Search Trees.ipynb` in a Jupyter environment. The interactive seed controls require `ipywidgets`.
-
----
-
-## Repository
+A mixture assigns a probability to each candidate root. The objective is to maximise the minimum expected reward across all keys:
 
 ```text
-Binary-Search-Tree-Optimisation/
-├── Binary Search Trees.ipynb
-├── requirements.txt
-└── README.md
+maximise t
+subject to R.T @ w >= t
+           sum(w) = 1
+           w >= 0
 ```
 
-This repository is deliberately presented as an **exploratory project** rather than a finished optimisation result; the emphasis is on the modelling process, visual analysis and development of a more general solution.
+Here `R` contains the rewards for each candidate tree. This is a reward-allocation problem, not an improvement to BST lookup complexity. The original notebook called roots “seeds”; they are not random-number seeds.
+
+## Results for 100 keys
+
+| Root-selection policy | Candidate roots | Minimum expected reward | Mean expected reward | Keys below zero |
+| --- | --- | ---: | ---: | ---: |
+| Uniform mixture | 38–62 | −0.5600 | 0.2000 | 13 |
+| Maximin mixture | 38–62 | −0.1982 | 0.2000 | 38 |
+| Maximin mixture | 1–100 | **+0.0285** | 0.1057 | **0** |
+
+![Expected reward by key for the uniform, restricted maximin and expanded maximin mixtures](assets/reward-comparison.png)
+
+Allowing all 100 roots produces a mixture with positive expected reward for every key. The full [weight vector](assets/all-root-weights.csv) and [per-key expectations](assets/expanded-key-rewards.csv) are included, so the result can be checked directly.
+
+The trade-off is visible in the table. Improving the worst outcome is different from reducing the number of negative outcomes, and the expanded mixture lowers the overall mean. Positive **expected** reward does not mean every individual tree gives every key a positive reward.
+
+These are numerical results for the stated construction and reward rule. They do not establish a general theorem for all binary search trees.
+
+## Reproduce the calculation
+
+Use Python 3.12:
+
+```bash
+git clone https://github.com/Robert-Study/Binary-Search-Tree-Optimisation.git
+cd Binary-Search-Tree-Optimisation
+python -m venv .venv
+```
+
+Activate with `source .venv/bin/activate` on macOS/Linux, or `.venv\Scripts\Activate.ps1` in Windows PowerShell. Then:
+
+```bash
+python -m pip install -r requirements.txt
+python demo.py
+python -m unittest discover -s tests -v
+```
+
+Results, weights and the plot are written to `outputs/demo/`. To open the walkthrough:
+
+```bash
+python -m pip install -r requirements-notebook.txt
+jupyter lab "Binary Search Trees.ipynb"
+```
+
+[Saved results](assets/results.json) · [Numerical tests](tests/test_rewards.py) · [GitHub Actions](https://github.com/Robert-Study/Binary-Search-Tree-Optimisation/actions)
+
+The original exploration is retained in Git history. The current implementation reproduces its default tree construction, replaces the incomplete optimisation code, and makes the objective and threshold explicit.
