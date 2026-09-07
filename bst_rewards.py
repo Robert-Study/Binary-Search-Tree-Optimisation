@@ -74,3 +74,84 @@ def optimise_mixture(rewards):
     weights = result.x[:-1]
     expected = weights @ matrix
     return MixtureResult(weights, expected, float(expected.min()), True)
+
+
+@dataclass
+class RangeResult:
+    first_root: int
+    last_root: int
+    mixture: MixtureResult
+    reward_floor: float
+    shorter_range_best_minimum: float | None
+    feasible_intervals: list[tuple[int, int]]
+
+
+def maximise_mean(rewards, reward_floor=1e-6):
+    """Maximise mean reward while every key receives at least reward_floor.
+
+    A specified positive floor makes the strict-positivity problem closed.
+    Without it, the best mean may only be a supremum approached at zero reward.
+    """
+    matrix = np.asarray(rewards, dtype=float)
+    if matrix.ndim != 2 or 0 in matrix.shape or not np.all(np.isfinite(matrix)):
+        raise ValueError('rewards must be a nonempty finite matrix: trees by keys.')
+    if not np.isfinite(reward_floor) or reward_floor <= 0:
+        raise ValueError('reward_floor must be finite and strictly positive.')
+    result = linprog(
+        -matrix.mean(axis=1), A_ub=-matrix.T,
+        b_ub=np.full(matrix.shape[1], -reward_floor),
+        A_eq=np.ones((1, len(matrix))), b_eq=[1.0], bounds=(0.0, None),
+        method='highs', options={'primal_feasibility_tolerance': 1e-9,
+                                 'dual_feasibility_tolerance': 1e-9},
+    )
+    if not result.success:
+        raise ValueError('No feasible mean-reward mixture: ' + result.message)
+    expected = result.x @ matrix
+    if expected.min() < reward_floor - 1e-8 or np.any(expected <= 0):
+        raise RuntimeError('The returned mixture fails the positive-reward constraint.')
+    return MixtureResult(result.x, expected, float(expected.min()), True)
+
+
+def minimum_positive_range(rewards, reward_floor=1e-6):
+    """Minimise contiguous candidate range, then maximise mean reward.
+
+    Rows must be ordered by consecutive root keys starting at one. Feasibility
+    is monotone in interval width, since a wider interval can use zero weights
+    for extra roots. Binary search therefore checks widths without skipping a
+    narrower feasible interval. Every interval at a tested width is examined.
+    """
+    matrix = np.asarray(rewards, dtype=float)
+    if matrix.ndim != 2 or 0 in matrix.shape or not np.all(np.isfinite(matrix)):
+        raise ValueError('rewards must be a nonempty finite matrix: roots by keys.')
+    if not np.isfinite(reward_floor) or reward_floor <= 0:
+        raise ValueError('reward_floor must be finite and strictly positive.')
+    if optimise_mixture(matrix).minimum_reward < reward_floor:
+        raise ValueError('The full candidate family cannot meet the reward floor.')
+    cache = {}
+
+    def assess(width):
+        if width not in cache:
+            cache[width] = [
+                (start, optimise_mixture(matrix[start:start + width]).minimum_reward)
+                for start in range(len(matrix) - width + 1)
+            ]
+        return cache[width]
+
+    low, high = 1, len(matrix)
+    while low < high:
+        width = (low + high) // 2
+        if any(minimum >= reward_floor for _, minimum in assess(width)):
+            high = width
+        else:
+            low = width + 1
+    width = low
+    feasible = [(start + 1, start + width) for start, minimum in assess(width)
+                if minimum >= reward_floor]
+    best = None
+    for first, last in feasible:
+        mixture = maximise_mean(matrix[first - 1:last], reward_floor)
+        # Keep the lower interval when mirrored solutions tie numerically.
+        if best is None or mixture.expected_rewards.mean() > best[2].expected_rewards.mean() + 1e-10:
+            best = (first, last, mixture)
+    shorter_best = max(value for _, value in assess(width - 1)) if width > 1 else None
+    return RangeResult(*best, reward_floor, shorter_best, feasible)

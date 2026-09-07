@@ -1,4 +1,4 @@
-"""Compare uniform and maximin root mixtures for a deterministic BST family."""
+"""Find the narrowest positive-reward root interval and maximise its mean."""
 import argparse
 import json
 from pathlib import Path
@@ -8,56 +8,69 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
-from bst_rewards import reward_matrix, optimise_mixture
+from bst_rewards import reward_matrix, optimise_mixture, minimum_positive_range
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--nodes', type=int, default=100)
-    parser.add_argument('--root-min', type=int, default=38)
-    parser.add_argument('--root-max', type=int, default=62)
+    parser.add_argument('--reward-floor', type=float, default=1e-6)
     parser.add_argument('--output', type=Path, default=Path('outputs/demo'))
     args = parser.parse_args()
-    if not 1 <= args.root_min <= args.root_max <= args.nodes:
-        parser.error('Require 1 <= root-min <= root-max <= nodes')
-    roots = np.arange(args.root_min, args.root_max+1)
-    matrix = reward_matrix(roots, args.nodes)
-    uniform = matrix.mean(axis=0)
-    result = optimise_mixture(matrix)
-    expanded = optimise_mixture(reward_matrix(range(1, args.nodes+1), args.nodes))
+    matrix = reward_matrix(range(1, args.nodes + 1), args.nodes)
+    result = minimum_positive_range(matrix, args.reward_floor)
+    full = optimise_mixture(matrix)
+    first, last = result.first_root, result.last_root
+    weights = np.zeros(args.nodes)
+    weights[first - 1:last] = result.mixture.weights
+    expected = weights @ matrix
+    keys = np.arange(1, args.nodes + 1)
     args.output.mkdir(parents=True, exist_ok=True)
-    keys = np.arange(1, args.nodes+1)
-    np.savetxt(args.output / 'root-weights.csv', np.column_stack([roots, result.weights]),
-               delimiter=',', header='root,weight', comments='')
-    np.savetxt(args.output / 'key-rewards.csv', np.column_stack([keys, uniform, result.expected_rewards]),
-               delimiter=',', header='key,uniform_reward,maximin_reward', comments='')
-    np.savetxt(args.output / 'all-root-weights.csv', np.column_stack([keys, expanded.weights]),
-               delimiter=',', header='root,weight', comments='')
-    np.savetxt(args.output / 'expanded-key-rewards.csv', np.column_stack([keys, expanded.expected_rewards]),
+    np.savetxt(args.output/'root-weights.csv', np.column_stack([keys, weights]),
+               delimiter=',', header='root,probability', comments='')
+    np.savetxt(args.output/'key-rewards.csv', np.column_stack([keys, expected]),
                delimiter=',', header='key,expected_reward', comments='')
-    fig, ax = plt.subplots(figsize=(10, 4), layout='constrained')
-    ax.plot(keys, uniform, '.-', color='#557d8a', linewidth=.6, label=f'Uniform, roots {args.root_min}–{args.root_max}')
-    ax.plot(keys, result.expected_rewards, '.-', color='#b25a30', linewidth=.6, label=f'Maximin, roots {args.root_min}–{args.root_max}')
-    ax.plot(keys, expanded.expected_rewards, '-', color='#19664a', linewidth=1.2, label='Maximin over all roots')
-    ax.axhline(0, color='#777777', linewidth=.8)
-    ax.set(xlabel='Key', ylabel='Expected reward', title=f'BST reward allocation | {args.nodes} keys')
-    ax.spines[['top', 'right']].set_visible(False)
-    ax.legend(frameon=False)
-    fig.savefig(args.output / 'reward-comparison.png', dpi=150)
+    active = int(np.count_nonzero(weights > 1e-9))
+    summary = {
+        'nodes': args.nodes, 'root_interval': [first, last],
+        'interval_positions': last-first+1, 'roots_with_positive_weight': active,
+        'reward_floor': args.reward_floor, 'minimum_expected_reward': float(expected.min()),
+        'mean_expected_reward': float(expected.mean()),
+        'keys_below_or_equal_to_zero': int(np.count_nonzero(expected <= 0)),
+        'weight_sum': float(weights.sum()),
+        'feasible_minimum_intervals': result.feasible_intervals,
+        'best_minimum_reward_one_position_shorter': result.shorter_range_best_minimum,
+        'all_roots_maximin': {'minimum': full.minimum_reward,
+                             'mean': float(full.expected_rewards.mean())},
+        'scope': 'Smallest contiguous interval, then largest mean subject to the stated positive reward floor; fixed median-split tree family.'
+    }
+    if args.nodes == 100:
+        uniform = matrix[37:62].mean(axis=0)
+        summary['uniform_roots_38_62'] = {'minimum': float(uniform.min()),
+            'mean': float(uniform.mean()), 'keys_below_or_equal_to_zero': int(np.count_nonzero(uniform <= 0))}
+    fig, axes = plt.subplots(2, 1, figsize=(11, 7), layout='constrained')
+    if args.nodes == 100:
+        axes[0].plot(keys, uniform, color='#b17866', linewidth=1, alpha=.65,
+                     label='Uniform roots 38–62')
+    axes[0].plot(keys, expected, color='#176b61', linewidth=1.5,
+                 label=f'Mean-optimal mixture, roots {first}–{last}')
+    axes[0].axhline(0, color='#555555', linewidth=.8)
+    axes[0].set(xlabel='Key', ylabel='Expected reward', xlim=(.5,args.nodes+.5),
+                title=f'{args.nodes} keys with positive expected reward | mean {expected.mean():.6f}')
+    axes[0].legend(frameon=False, loc='upper right')
+    axes[1].axvspan(first-.5, last+.5, color='#176b61', alpha=.06)
+    axes[1].bar(keys, weights, color='#176b61', width=.85)
+    axes[1].set(xlabel='Root key', ylabel='Selection probability', xlim=(.5,args.nodes+.5),
+                title=f'Smallest contiguous range: {first}–{last} | {last-first+1} positions, {active} nonzero weights')
+    axes[1].text(.01,.96,f'Minimum expected reward: {expected.min():.2e}',
+                 transform=axes[1].transAxes,va='top',fontsize=10)
+    for ax in axes:
+        ax.spines[['top','right']].set_visible(False)
+        ax.grid(axis='y',alpha=.15)
+    fig.savefig(args.output/'reward-comparison.png',dpi=160)
     plt.close(fig)
-    summary = {'nodes': args.nodes, 'roots': [args.root_min, args.root_max], 'threshold': 0,
-               'negative_tolerance': 1e-9,
-               'uniform': {'minimum_reward': float(uniform.min()), 'mean_reward': float(uniform.mean()),
-                           'keys_below_zero': int(np.count_nonzero(uniform < -1e-9))},
-               'maximin': {'minimum_reward': result.minimum_reward, 'mean_reward': float(result.expected_rewards.mean()),
-                           'keys_below_zero': int(np.count_nonzero(result.expected_rewards < -1e-9))},
-               'expanded_maximin': {'roots': [1, args.nodes], 'minimum_reward': expanded.minimum_reward,
-                                    'mean_reward': float(expanded.expected_rewards.mean()),
-                                    'keys_below_zero': int(np.count_nonzero(expanded.expected_rewards < -1e-9)),
-                                    'all_keys_strictly_positive': bool(np.all(expanded.expected_rewards > 1e-9))},
-               'scope': 'Numerical optimum over the fixed candidate trees, not all possible BST structures.'}
-    (args.output / 'results.json').write_text(json.dumps(summary, indent=2) + '\n')
-    print(json.dumps(summary, indent=2))
+    (args.output/'results.json').write_text(json.dumps(summary,indent=2)+'\n')
+    print(json.dumps(summary,indent=2))
 
 
 if __name__ == '__main__':

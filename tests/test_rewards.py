@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from bst_rewards import tree_depths, reward_matrix, optimise_mixture
+from bst_rewards import tree_depths, reward_matrix, optimise_mixture, maximise_mean, minimum_positive_range
 
 
 class RewardTests(unittest.TestCase):
@@ -39,6 +39,30 @@ class RewardTests(unittest.TestCase):
         self.assertTrue(np.all(result.weights @ matrix > .028))
         self.assertAlmostEqual(result.weights.sum(), 1)
 
+
+    def test_mean_objective_has_known_solution(self):
+        result = maximise_mean([[3, -1], [-1, 2]], reward_floor=.1)
+        self.assertAlmostEqual(result.weights[0], 1.9 / 3)
+        self.assertAlmostEqual(result.minimum_reward, .1)
+
+    def test_interval_search_on_small_known_problem(self):
+        result = minimum_positive_range([[2, -1], [-1, 2], [-4, -4]], .1)
+        self.assertEqual((result.first_root, result.last_root), (1, 2))
+        self.assertLess(result.shorter_range_best_minimum, 0)
+
+    def test_narrowest_100_key_range_and_strict_positivity(self):
+        matrix = reward_matrix(range(1, 101))
+        result = minimum_positive_range(matrix)
+        self.assertEqual((result.first_root, result.last_root), (4, 82))
+        self.assertEqual(result.feasible_intervals, [(4, 82), (19, 97)])
+        self.assertLess(result.shorter_range_best_minimum, 0)
+        self.assertTrue(np.all(result.mixture.expected_rewards > 0))
+        self.assertAlmostEqual(result.mixture.weights.sum(), 1)
+        self.assertGreater(result.mixture.expected_rewards.mean(), .1317)
+
+    def test_impossible_positive_floor_is_rejected(self):
+        with self.assertRaises(ValueError):
+            minimum_positive_range([[1, -1], [-1, 1]])
 
 if __name__ == '__main__':
     unittest.main()

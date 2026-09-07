@@ -1,51 +1,50 @@
 # Binary Search Tree Optimisation
 
-How should a root be chosen if each key's reward depends on its depth in the resulting tree?
+A study of how the choice of root changes the reward received by each key in a binary search tree. The current solution finds the **smallest contiguous root range that gives every key positive expected reward**, then maximises the mean reward within that range.
 
-This began as an exploratory notebook about weighting root choices and rounding decisions. The current version defines the problem explicitly and uses linear programming to maximise the **lowest expected reward** across keys.
+## Current solution: roots 4–82
 
-## The model
+For 100 keys, the narrowest feasible range contains **79 root positions**. Roots **4–82** and the mirrored range **19–97** both work. The mean-optimal solution shown here assigns nonzero probability to **40 roots**.
 
-The keys are 1–100. After choosing the root, each subtree is split at its middle key; where there are two middle keys, the one further from the parent is chosen. Ties go to the upper middle key. A key at depth d receives reward **6 − d**, with the root at depth one.
+| Root-selection strategy | Root range | Mean expected reward | Minimum expected reward | Keys at or below zero |
+| --- | --- | ---: | ---: | ---: |
+| Uniform mixture | 38–62 | 0.200000 | −0.560000 | 19 |
+| Maximum minimum reward | 1–100 | 0.105679 | +0.028524 | 0 |
+| **Smallest range, then maximum mean** | **4–82** | **0.131744** | **+0.000001** | **0** |
 
-A mixture assigns a probability to each candidate root. The objective is to maximise the minimum expected reward across all keys:
+![Expected reward for each key and root-selection probabilities for the minimum-range solution](assets/reward-comparison.png)
+
+The new solution improves the mean by approximately **24.7%** over the all-root maximin mixture while keeping every key's expected reward positive. It trades some protection for the worst-served key for a higher average reward.
+
+[Root probabilities](assets/root-weights.csv) · [Expected rewards by key](assets/key-rewards.csv) · [Search results](assets/results.json)
+
+## How the strategy is found
+
+The keys are 1–100. Once a root is selected, each subtree is split at its middle key; when there are two middle keys, the one further from the parent is chosen. Ties go to the upper middle key. A key at depth d receives reward **6 − d**, with the root at depth one.
+
+A root mixture is a probability distribution over those trees. The search has two ordered objectives:
+
+1. Find the narrowest contiguous candidate-root interval that can keep every expected reward positive.
+2. Among intervals of that width, maximise the average expected reward.
+
+For each interval, a linear program finds the largest possible minimum reward. Feasibility is monotone in interval width, so the search can narrow the width efficiently while checking every interval at each tested width.
+
+The best minimum reward across all **78-position intervals is −0.001649**. Since every shorter interval is contained within a 78-position interval, no shorter range can make all keys positive under this tree-construction rule. The 79-position solutions are therefore the numerical minimum for this family.
+
+To optimise the mean with a strict positivity requirement, the final linear program sets a small positive floor:
 
 ```text
-maximise t
-subject to R.T @ w >= t
+maximise mean(R.T @ w)
+subject to R.T @ w >= 0.000001
            sum(w) = 1
            w >= 0
 ```
 
-Here `R` contains the rewards for each candidate tree. This is a reward-allocation problem, not an improvement to BST lookup complexity. The original notebook called roots “seeds”; they are not random-number seeds.
+The floor is explicit because a strict inequality by itself can yield a limiting best mean that is approached only as some rewards tend to zero. The reported mean is optimal for the stated floor and minimum-width intervals. “79 positions” describes the span of candidate roots; it does not mean all 79 have nonzero weight.
 
-## Results for 100 keys
+This is an expected-reward result for the defined tree family. It does not mean that every individual tree rewards every key positively, or that BST lookup complexity has changed.
 
-| Root-selection policy | Candidate roots | Minimum expected reward | Mean expected reward | Keys below zero |
-| --- | --- | ---: | ---: | ---: |
-| Uniform mixture | 38–62 | −0.5600 | 0.2000 | 13 |
-| Maximin mixture | 38–62 | −0.1982 | 0.2000 | 38 |
-| Maximin mixture | 1–100 | **+0.0285** | 0.1057 | **0** |
-
-![Expected reward by key for the uniform, restricted maximin and expanded maximin mixtures](assets/reward-comparison.png)
-
-Allowing all 100 roots produces a mixture with positive expected reward for every key. The full [weight vector](assets/all-root-weights.csv) and [per-key expectations](assets/expanded-key-rewards.csv) are included, so the result can be checked directly.
-
-The trade-off is visible in the table. Improving the worst outcome is different from reducing the number of negative outcomes, and the expanded mixture lowers the overall mean. Positive **expected** reward does not mean every individual tree gives every key a positive reward.
-
-These are numerical results for the stated construction and reward rule. They do not establish a general theorem for all binary search trees.
-
-## Reproduce the calculation
-
-Use Python 3.12:
-
-```bash
-git clone https://github.com/Robert-Study/Binary-Search-Tree-Optimisation.git
-cd Binary-Search-Tree-Optimisation
-python -m venv .venv
-```
-
-Activate with `source .venv/bin/activate` on macOS/Linux, or `.venv\Scripts\Activate.ps1` in Windows PowerShell. Then:
+## Core tests and calculation
 
 ```bash
 python -m pip install -r requirements.txt
@@ -53,13 +52,12 @@ python demo.py
 python -m unittest discover -s tests -v
 ```
 
-Results, weights and the plot are written to `outputs/demo/`. To open the walkthrough:
+The calculation writes the figure, root weights, per-key expectations and search results to `outputs/demo/`. The walkthrough is in [Binary Search Trees.ipynb](Binary%20Search%20Trees.ipynb).
 
-```bash
-python -m pip install -r requirements-notebook.txt
-jupyter lab "Binary Search Trees.ipynb"
-```
+Tests check the tree construction, probability constraints, small problems with known solutions, the minimum feasible range and strict positivity of every expected reward.
 
-[Saved results](assets/results.json) · [Numerical tests](tests/test_rewards.py) · [GitHub Actions](https://github.com/Robert-Study/Binary-Search-Tree-Optimisation/actions)
+[Core tests](tests/test_rewards.py) · [GitHub Actions](https://github.com/Robert-Study/Binary-Search-Tree-Optimisation/actions)
 
-The original exploration is retained in Git history. The current implementation reproduces its default tree construction, replaces the incomplete optimisation code, and makes the objective and threshold explicit.
+## Further investigation
+
+This solution is implemented. I intend to look for a better strategy by exploring alternative subtree rounding rules and tree constructions, aiming to retain positive rewards with a narrower root range or a higher mean.

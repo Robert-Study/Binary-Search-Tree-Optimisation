@@ -1,30 +1,35 @@
 {
   "nodes": 100,
-  "roots": [
-    38,
-    62
+  "root_interval": [
+    4,
+    82
   ],
-  "threshold": 0,
-  "negative_tolerance": 1e-09,
-  "uniform": {
-    "minimum_reward": -0.56,
-    "mean_reward": 0.2,
-    "keys_below_zero": 13
-  },
-  "maximin": {
-    "minimum_reward": -0.19823612806738675,
-    "mean_reward": 0.2,
-    "keys_below_zero": 38
-  },
-  "expanded_maximin": {
-    "roots": [
-      1,
-      100
+  "interval_positions": 79,
+  "roots_with_positive_weight": 40,
+  "reward_floor": 1e-06,
+  "minimum_expected_reward": 9.999999817794647e-07,
+  "mean_expected_reward": 0.1317440422538113,
+  "keys_below_or_equal_to_zero": 0,
+  "weight_sum": 0.9999999999999997,
+  "feasible_minimum_intervals": [
+    [
+      4,
+      82
     ],
-    "minimum_reward": 0.028524391053820337,
-    "mean_reward": 0.10567932748172437,
-    "keys_below_zero": 0,
-    "all_keys_strictly_positive": true
+    [
+      19,
+      97
+    ]
+  ],
+  "best_minimum_reward_one_position_shorter": -0.0016487729986104788,
+  "all_roots_maximin": {
+    "minimum": 0.028524391053820337,
+    "mean": 0.10567932748172437
   },
-  "scope": "Numerical optimum over the fixed candidate trees, not all possible BST structures."
+  "scope": "Smallest contiguous interval, then largest mean subject to the stated positive reward floor; fixed median-split tree family.",
+  "uniform_roots_38_62": {
+    "minimum": -0.56,
+    "mean": 0.2,
+    "keys_below_or_equal_to_zero": 19
+  }
 }
