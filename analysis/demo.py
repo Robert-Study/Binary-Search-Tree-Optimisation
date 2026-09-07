@@ -8,7 +8,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
-from bst_rewards import reward_matrix, optimise_mixture, minimum_positive_range
+from analysis.bst_rewards import reward_matrix, optimise_mixture, minimum_positive_range
 
 
 def main():

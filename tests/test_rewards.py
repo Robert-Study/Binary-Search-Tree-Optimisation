@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from bst_rewards import tree_depths, reward_matrix, optimise_mixture, maximise_mean, minimum_positive_range
+from analysis.bst_rewards import tree_depths, reward_matrix, optimise_mixture, maximise_mean, minimum_positive_range
 
 
 class RewardTests(unittest.TestCase):

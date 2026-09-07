@@ -12,11 +12,11 @@ For 100 keys, the narrowest feasible range contains **79 root positions**. Roots
 | Maximum minimum reward | 1–100 | 0.105679 | +0.028524 | 0 |
 | **Smallest range, then maximum mean** | **4–82** | **0.131744** | **+0.000001** | **0** |
 
-![Expected reward for each key and root-selection probabilities for the minimum-range solution](assets/reward-comparison.png)
+![Expected reward for each key and root-selection probabilities for the minimum-range solution](reward-comparison.png)
 
 The new solution improves the mean by approximately **24.7%** over the all-root maximin mixture while keeping every key's expected reward positive. It trades some protection for the worst-served key for a higher average reward.
 
-[Root probabilities](assets/root-weights.csv) · [Expected rewards by key](assets/key-rewards.csv) · [Search results](assets/results.json)
+[Root probabilities](analysis/results/root-weights.csv) · [Expected rewards by key](analysis/results/key-rewards.csv) · [Search results](analysis/results/results.json)
 
 ## How the strategy is found
 
@@ -48,11 +48,11 @@ This is an expected-reward result for the defined tree family. It does not mean 
 
 ```bash
 python -m pip install -r requirements.txt
-python demo.py
+python -m analysis.demo
 python -m unittest discover -s tests -v
 ```
 
-The calculation writes the figure, root weights, per-key expectations and search results to `outputs/demo/`. The walkthrough is in [Binary Search Trees.ipynb](Binary%20Search%20Trees.ipynb).
+The calculation in `analysis/demo.py` writes the figure, root weights, per-key expectations and search results to `outputs/demo/`. The walkthrough is in [Binary Search Trees.ipynb](analysis/Binary%20Search%20Trees.ipynb).
 
 Tests check the tree construction, probability constraints, small problems with known solutions, the minimum feasible range and strict positivity of every expected reward.
 
